@@ -186,14 +186,17 @@ class Cluster:
         try:
             # First try to connect to an existing Ray cluster
             ray.init(
-                address="auto",
+                # address="auto",
                 logging_level=Cluster.LOGGING_LEVEL,
                 namespace=Cluster.NAMESPACE,
+                # _temp_dir=os.environ['RAY_TEMP_DIR'],
+                # runtime_env={"env_vars": {"RAY_DEBUG": "legacy"}}
             )
         except ConnectionError:
             ray.init(
                 logging_level=Cluster.LOGGING_LEVEL,
                 namespace=Cluster.NAMESPACE,
+                # runtime_env={"env_vars": {"RAY_DEBUG": "legacy"}}
             )
 
         # Wait for the cluster to be ready

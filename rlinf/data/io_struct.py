@@ -1156,7 +1156,7 @@ class EmbodiedRolloutResult:
             else None
         )
         rollout_result_dict["dones"] = (
-            torch.stack(self.dones, dim=0).cpu().contiguous()
+            torch.stack(self.dones, dim=0).cpu().contiguous()   # (chunk_num, batch_size, chunk_size)
             if len(self.dones) > 0
             else None
         )

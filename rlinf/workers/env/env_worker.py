@@ -74,6 +74,7 @@ class EnvWorker(Worker):
             self.eval_num_envs_per_stage = (
                 self.cfg.env.eval.total_num_envs // self._world_size // self.stage_num
             )
+        # print("EnvWorker initialized. num_envs:", self.cfg.env.eval.num_envs)
 
     def init_worker(self):
         enable_offload = self.cfg.env.enable_offload

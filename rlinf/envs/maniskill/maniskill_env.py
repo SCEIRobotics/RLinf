@@ -70,6 +70,7 @@ class ManiskillEnv(gym.Env):
         with open_dict(cfg):
             cfg.init_params.num_envs = num_envs
         env_args = OmegaConf.to_container(cfg.init_params, resolve=True)
+        print(env_args)
         self.env: BaseEnv = gym.make(**env_args)
         self.prev_step_reward = torch.zeros(self.num_envs, dtype=torch.float32).to(
             self.device

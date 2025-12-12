@@ -66,6 +66,11 @@ class MultiStepRolloutWorker(Worker):
             )
 
         self.hf_model.eval()
+        
+        # if self.cfg.rollout.get('ckpt_file', None) is not None:
+        #     state_dict = torch.load(self.cfg.rollout.ckpt_file, map_location='cpu')
+        #     self.hf_model.load_state_dict(state_dict)
+        #     print(f"Loaded rollout model from {self.cfg.rollout.ckpt_file}")
 
         self.setup_sample_params()
         if self.enable_offload:
