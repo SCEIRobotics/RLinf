@@ -14,6 +14,7 @@
 
 import json
 import os
+from dataclasses import dataclass, fields, is_dataclass
 
 import torch
 from omegaconf import DictConfig
@@ -323,6 +324,19 @@ def get_model(cfg: DictConfig, override_config_kwargs=None):
 
         if cfg.rl_head_config.disable_dropout:
             replace_dropout_with_identity(model)
+    elif model_type == SupportedModel.FLOWER:
+        from .embodiment.flower_action_model import FlowerRLConfig, FlowerForRLActionPrediction
+        def filter_dataclass_kwargs(cls, kwargs):
+            """通用函数：过滤参数，包含当前类 + 所有父类的 dataclass 字段"""
+            all_fields = set()
+            for base_cls in cls.__mro__:
+                if is_dataclass(base_cls) and base_cls is not object:
+                    all_fields.update({f.name for f in fields(base_cls)})
+            return {k: v for k, v in kwargs.items() if k in all_fields}
+        # filtered_cfg = filter_dataclass_kwargs(FlowerRLConfig, cfg)
+        config = FlowerRLConfig(**cfg.flower)
+        model = FlowerForRLActionPrediction(config)
+        model.to(torch_dtype)
     else:
         return None
     if torch.cuda.is_available():

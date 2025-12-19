@@ -13,6 +13,14 @@ from tqdm import tqdm
 
 os.environ['EMBODIED_PATH'] = '/mnt/data/xingchen/github/RLinf/examples/embodiment/config'
 
+def to_gpu(datas: dict, device) -> dict:
+    for k, v in datas.items():
+        if isinstance(v, torch.Tensor):
+            datas[k] = v.to(device)
+        else:
+            datas[k] = v
+    return datas
+
 def env_test(cfg, num_envs):
     eval_env_cls = get_env_cls(cfg.env.eval.simulator_type, cfg.env.eval)
     env = eval_env_cls(cfg.env.eval, num_envs = num_envs, seed_offset=0, total_num_processes=1)
@@ -31,17 +39,17 @@ def env_test(cfg, num_envs):
         extracted_obs, step_reward, terminations, truncations, infos = env.step(action)
     env.flush_video()
 
-def model_test(cfg, num_envs, model_dir):
+def model_test(cfg, num_envs, model_dir, device):
     # model path update
-    # import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     cfg.rollout.model.model_path = model_dir
     cfg.actor.model.model_path = model_dir
-    cfg.actor.tokenizer.tokenizer_model = model_dir
+    # cfg.actor.tokenizer.tokenizer_model = model_dir
+
     # env
     eval_env_cls = get_env_cls(cfg.env.eval.simulator_type, cfg.env.eval)
     env = eval_env_cls(cfg.env.eval, num_envs = num_envs, seed_offset=0, total_num_processes=1)
     extracted_obs, infos = env.reset()
-    device = extracted_obs['images'].device
 
     # model
     model = get_model(cfg.actor.model)
@@ -51,14 +59,14 @@ def model_test(cfg, num_envs, model_dir):
         ]:
         model_config, input_processor = get_vla_model_config_and_processor(cfg.actor)
         model.setup_config_and_processor(model_config, cfg, input_processor)
-    # model_dict = torch.load("/mnt/data/xingchen/github/RLinf/logs/20251212-08:44:22/test_openvla/checkpoints/global_step_75/actor/ckpt.pt")
-    # model.load_state_dict(model_dict)
+    model_dict = torch.load(model_dir, map_location='cpu')
+    model.load_state_dict(model_dict)
     model.to(device)
     model.eval()
 
     # inference
     max_step = cfg.env.eval.max_episode_steps // cfg.actor.model.num_action_chunks
-    max_step = 10
+    # max_step = 10
     kwargs = dict(cfg.algorithm.sampling_params)
     kwargs["do_sample"] = True
     kwargs["use_cache"] = True
@@ -66,7 +74,8 @@ def model_test(cfg, num_envs, model_dir):
     for _ in tqdm(range(max_step)):
         # extracted_obs["states"] = None
         # extracted_obs["wrist_images"] = None
-        actions, result = model.predict_action_batch(env_obs=extracted_obs, **kwargs)
+        model_inputs = to_gpu(extracted_obs, device)
+        actions, result = model.predict_action_batch(env_obs=model_inputs, mode="eval", **kwargs)
         chunk_actions = prepare_actions(
             raw_chunk_actions=actions,
             simulator_type=cfg.env.train.simulator_type,
@@ -84,10 +93,12 @@ def main(cfg) -> None:
     # cfg = validate_cfg(cfg)
     if cfg.env.eval.simulator_type == 'maniskill':
         cfg.env.eval.init_params.control_mode = "arm_pd_ee_target_delta_pose_align2_gripper_pd_joint_pos"
-    cfg.env.eval.video_cfg.video_base_dir = 'logs/temp/libero_openvlaoft'
+    cfg.env.eval.video_cfg.video_base_dir = 'logs/temp/libero_flower'
 
+    device = 'cuda:0'
     # env_test(cfg, num_envs = 2)
-    model_test(cfg, num_envs = 2, model_dir = '/mnt/data/xingchen/github/RLinf/logs/20251212-08:44:22/test_openvla/checkpoints/global_step_75/actor/model')
+    # model_test(cfg, num_envs = 2, model_dir = '/mnt/data/xingchen/github/RLinf/logs/20251212-08:44:22/test_openvla/checkpoints/global_step_75/actor/model')
+    model_test(cfg, num_envs = 2, model_dir = '/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt', device=device)
 
 if __name__ == "__main__":
     main()

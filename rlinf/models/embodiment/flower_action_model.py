@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch import Tensor
 import torch.nn.functional as F
+import torchvision.transforms.functional as trans_F
 from torchvision import transforms
 from lerobot.policies.flower.modeling_flower import FlowerModel
 from lerobot.policies.flower.configuration_flower import FlowerConfig
@@ -22,6 +23,7 @@ class FlowerRLConfig(FlowerConfig):
     )
 
     robot_type: str = "genie1"
+    img_size: int = 224
 
     # noise configs
     noise_method: str = "flow_sde"  # flow_sde, flow_noise, flow_cps
@@ -114,12 +116,15 @@ class FlowerForRLActionPrediction(FlowerModel):
 
         # other
         self.img_transform = transforms.Normalize(
-                            mean=[0.485, 0.456, 0.406],  # RGB 均值
-                            std=[0.229, 0.224, 0.225]    # RGB 标准差
+                            mean=[0.48145466, 0.4578275, 0.40821073],  # RGB 均值
+                            std=[0.26862954, 0.26130258, 0.27577711]    # RGB 标准差
                         )
     
     def predict_action_batch(
-        self, env_obs, mode: Literal["train", "eval"] = "train", compute_values=True
+        self, env_obs, 
+        mode: Literal["train", "eval"] = "train", 
+        compute_values=True, 
+        **kwargs,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         
         processed_obs = self.preprocess_observations(env_obs)
@@ -157,8 +162,9 @@ class FlowerForRLActionPrediction(FlowerModel):
             device=device,
         )
     
-    def preprocess_observations(self, observation):
+    def preprocess_observations(self, observation, rotate = True):
         # match lerobot inputs
+        img_size = self.config.img_size
         obs_out = {}
         images = torch.stack([observation['images'], observation['wrist_images']], dim = 1)
         obs_out['observation.images'] = images.unsqueeze(1)  # (B, n_obs_steps, num_cameras, C, H, W)
@@ -172,22 +178,22 @@ class FlowerForRLActionPrediction(FlowerModel):
                     height,
                     width,
                 )
-        x_reshaped = F.interpolate(x_reshaped, size=(224,224), mode='bilinear').type(torch.float32) / 255.
+        # x_reshaped = x_reshaped[:, [2, 1, 0], :, :].contiguous()  # BGR to RGB
+        if rotate:
+            x_reshaped = trans_F.vflip(trans_F.hflip(x_reshaped))   # rotate 180
+        x_reshaped = F.interpolate(x_reshaped.type(torch.float32), size=(img_size,img_size), mode='bilinear') / 255.
         x_reshaped = self.img_transform(x_reshaped)
         obs_out['observation.images'] = x_reshaped.view(
                     batch_size,
                     n_obs_steps,
                     cam,
                     channels,
-                    224,
-                    224,
+                    img_size,
+                    img_size,
                 )
         
         # process text
         text_inputs = self.tokenizer(observation, robot_type=self.config.robot_type)
-        # obs_out['text_input_ids'] = torch.ones(batch_size, 16, dtype=torch.int32, device=observation['states'].device)
-        # obs_out['text_attention_mask'] = torch.ones(batch_size, 16, dtype=torch.int32, device=observation['states'].device)
-        # obs_out['action_index'] = torch.ones(batch_size, dtype=torch.int32, device=observation['states'].device) * 2
         obs_out.update(text_inputs)
 
         return obs_out
@@ -209,6 +215,45 @@ class FlowerForRLActionPrediction(FlowerModel):
             log_prob = constant_term + exponent_term
             log_prob = torch.where(mask, torch.zeros_like(log_prob), log_prob)
         return log_prob
+
+    def forward(
+        self,
+        data: dict[str, torch.Tensor],
+        **kwargs,
+    ) -> dict[str, Any]:
+        # get kwargs
+        compute_values = kwargs.get("compute_values", False)
+        chains = data["chains"]
+        denoise_inds = data["denoise_inds"]
+        self.device = chains.device
+
+        # encoder
+        cond = self.encode_observations(data)
+
+        # get log prob
+        log_probs, value_t, entropy = self.get_log_prob_value(
+            cond,
+            chains,
+            denoise_inds,
+            compute_values,
+        )
+        log_probs = log_probs[
+            :, :, : self.config.action_chunk, : self.config.action_env_dim
+        ]
+        entropy = entropy[
+            :, :, : self.config.action_chunk, : self.config.action_env_dim
+        ]
+        # post process
+        log_probs = log_probs.mean(dim=1)
+        entropy = entropy.mean(dim=[1, 2, 3], keepdim=False)[
+            :, None
+        ]  # [:,None] to align with loss-mask shape
+        value_t = value_t.mean(dim=-1, keepdim=False)
+        return {
+            "logprobs": log_probs,
+            "values": value_t,
+            "entropy": entropy,
+        }
     
     @torch.no_grad()
     def sample_actions(
@@ -242,6 +287,9 @@ class FlowerForRLActionPrediction(FlowerModel):
 
         # run sampling
         samples = self.conditional_sample(bsize, device, mode=mode,cond=cond, noise=noise, compute_values=compute_values)
+        # actions = super().conditional_sample(bsize, cond=cond, noise=noise)
+        # samples["actions"] = actions
+        # samples["actions"] = torch.clamp(samples["actions"], -1, 1)
 
         return samples
     
@@ -274,38 +322,40 @@ class FlowerForRLActionPrediction(FlowerModel):
         # denoise index
         if mode == "train":
             if self.config.joint_logprob:
-                denoise_inds = torch.arange(num_steps, 0, -1)
+                denoise_inds = torch.arange(num_steps)
             else:
                 if self.config.ignore_last:
                     denoise_inds = torch.tensor(
-                        [random.randint(1, num_steps - 1)] * num_steps
+                        [random.randint(0, num_steps - 2)] * num_steps
                     )
                 else:
                     denoise_inds = torch.tensor(
-                        [random.randint(1, num_steps)] * num_steps
+                        [random.randint(0, num_steps - 1)] * num_steps
                     )
         else:
             denoise_inds = torch.tensor([-1] * num_steps)
         denoise_inds = denoise_inds[None].repeat(batch_size, 1)
 
-         # Integration
+        # Integration
         dt = 1.0 / num_steps
         dt_tensor = torch.tensor([dt] * batch_size, device=device) # (batch_size,)
+        timesteps = torch.linspace(1, 1 / num_steps, num_steps, device=device)
 
-        for idx in range(num_steps, 0, -1):
+        for idx in range(num_steps):
             # Predict velocity field
-            t_val = float(idx) / num_steps
+            t_val = timesteps[idx]
             t_tensor = torch.full((batch_size,), t_val, device=device)  # (batch_size,)
-            v_t = self.dit_forward(x_t, t_tensor, cond)
+            v_t, v_t_emb = self.dit_forward(x_t, t_tensor, cond)
 
             # sample mean var val
-            if idx == denoise_inds[0][idx-1]:
+            if idx == denoise_inds[0][idx]:
                 sample_mode = "train"
             else:
                 sample_mode = "eval"
             x_t_mean, x_t_std, value_t = self.sample_mean_var_val(
                 x_t,
                 v_t,
+                v_t_emb,
                 t_tensor,
                 dt_tensor,
                 sample_mode,
@@ -343,9 +393,78 @@ class FlowerForRLActionPrediction(FlowerModel):
             "denoise_inds": denoise_inds,
         }
     
+    def get_log_prob_value(
+            self, 
+            cond,
+            chains,
+            denoise_inds,
+            compute_values):
+        
+        chains_log_probs = []
+        chains_values = []
+        chains_entropy = []
+
+        bsize = chains.shape[0]
+        device = chains.device
+        max_step = self.config.num_inference_steps
+        # get init log prob
+        if self.config.joint_logprob:
+            num_steps = self.config.num_inference_steps
+            initial_log_prob = self.get_logprob_norm(
+                chains[:, 0, : self.config.action_chunk, : self.config.action_env_dim],
+                torch.zeros_like(chains[:, 0, : self.config.action_chunk, : self.config.action_env_dim]),
+                torch.ones_like(chains[:, 0, : self.config.action_chunk, : self.config.action_env_dim]),
+            )
+            initial_entropy = self.gaussian_entropy(torch.ones_like(chains[:, 0, : self.config.action_chunk, : self.config.action_env_dim]))
+            chains_log_probs.append(initial_log_prob)
+            chains_entropy.append(initial_entropy)
+        else:
+            num_steps = 1
+        
+        # pre compute
+        dt = 1.0 / self.config.num_inference_steps
+        dt_tensor = torch.tensor([dt] * bsize, device=device) # (batch_size,)
+        timesteps = torch.linspace(1, 1 / max_step, max_step, device=device)
+
+        for idx in range(num_steps):
+            denoise_ind = denoise_inds[:, idx]
+            chains_pre = chains[torch.arange(bsize), denoise_ind]    # denoise_ind is descend
+            chains_next = chains[torch.arange(bsize), denoise_ind + 1]
+
+            # Predict velocity field
+            t_tensor = timesteps[denoise_ind]
+            v_t, v_t_emb = self.dit_forward(chains_pre, t_tensor, cond)
+
+            x_t_mean, x_t_std, value_t = self.sample_mean_var_val(
+                chains_pre,
+                v_t,
+                v_t_emb,
+                t_tensor,
+                dt_tensor,
+                "train",
+                compute_values,
+            )
+            log_probs = self.get_logprob_norm(chains_next[:, : self.config.action_chunk, : self.config.action_env_dim], 
+                                              x_t_mean[:, : self.config.action_chunk, : self.config.action_env_dim],
+                                              x_t_std[:, : self.config.action_chunk, : self.config.action_env_dim])  # just compute env action dim
+            entropy = self.gaussian_entropy(x_t_std[:, : self.config.action_chunk, : self.config.action_env_dim])
+            chains_log_probs.append(log_probs)
+            chains_entropy.append(entropy)
+            chains_values.append(value_t)
+        chains_log_probs = torch.stack(chains_log_probs, dim=1)
+        chains_values = torch.stack(chains_values, dim=1)
+
+        # entropy is only available for flow-noise method
+        if self.config.noise_method == "flow_noise":
+            chains_entropy = torch.stack(chains_entropy, dim=1)
+        else:
+            chains_entropy = torch.zeros_like(chains_log_probs)
+        return chains_log_probs, chains_values, chains_entropy
+    
     def sample_mean_var_val(self, 
                             x_t,
-                            v_t, 
+                            v_t,
+                            v_t_emb, 
                             t_tensor,
                             dt_tensor,
                             mode,
@@ -372,7 +491,7 @@ class FlowerForRLActionPrediction(FlowerModel):
             self.config.add_value_head
             and compute_values
         ):
-            suffix_out = v_t
+            suffix_out = v_t_emb
             # use chunk critic input
             if self.config.chunk_critic_input:
                 suffix_out_value = torch.mean(
@@ -425,13 +544,25 @@ class FlowerForRLActionPrediction(FlowerModel):
         x_t_mean = x0_pred * x0_weight + x1_pred * x1_weight
         return x_t_mean, x_t_std, value_t
 
+    def gaussian_entropy(self, sigma):
+        mask = sigma == 0
+        sigma_safe = torch.where(mask, torch.ones_like(sigma), sigma)
+        entropy = 0.5 * torch.log(2 * math.pi * math.e * (sigma_safe**2))
+        return entropy
+
 if __name__ == "__main__":
     import ipdb; ipdb.set_trace()
     # model
     config = FlowerRLConfig()
     config.n_obs_steps = 1
     config.vlm_path = "/mnt/data/xingchen/models/pretrained/Florence-2-large"
+    config.add_value_head = True
+    config.max_action_dim = 7
+    config.robot_type = 'lift2'
+    config.use_proprio = False
     model = FlowerForRLActionPrediction(config)
+    model_dict = torch.load("/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt", map_location='cpu', weights_only = False)
+    model.load_state_dict(model_dict)
     print(model)
     device = torch.device('cuda:7' if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -446,3 +577,12 @@ if __name__ == "__main__":
     # inference
     actions, results = model.predict_action_batch(obs)
     print(actions.shape)
+
+    # forward
+    process_input = {}
+    for key, value in results['forward_inputs'].items():
+        process_input[key] = value.to(device)
+    results.update(process_input)
+    outs = model(results)
+    ratio = outs['logprobs'] / results['prev_logprobs']
+    print(outs['logprobs'].shape, ratio.shape)

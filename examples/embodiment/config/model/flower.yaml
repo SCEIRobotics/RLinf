@@ -1,0 +1,51 @@
+model_type: "flower"
+
+# Model path - should be set in specific config files
+model_path: "/path/to/model/flower"
+
+precision: null
+
+# LoRA settings
+is_lora: False
+lora_rank: 32
+
+# Training settings
+action_dim: ${actor.model.flower.action_env_dim}
+num_action_chunks: ${actor.model.flower.horizon}
+use_proprio: True
+num_steps: ${actor.model.flower.num_inference_steps}
+add_value_head: True
+
+# flower specific parameters
+flower:
+  robot_type: "genie1"
+  img_size: 224
+  horizon: 16
+  n_obs_steps: 1
+  num_inference_steps: 10
+  use_proprio: False
+  vlm_path: "/mnt/data/xingchen/models/pretrained/Florence-2-large"
+
+  # noise configs
+  noise_method: "flow_sde"  # flow_sde, flow_noise, flow_cps
+  # noise config for flow-sde
+  noise_level: 0.5
+  noise_anneal: False
+
+  # hyper-parameters
+  action_chunk: ${actor.model.flower.horizon}  # action chunk = horizon
+  action_env_dim: 7  # for environment action dim
+  max_action_dim: 16  # for max action dim
+
+  # training config
+  train_expert_only: False
+  safe_get_logprob: False
+  joint_logprob: False  # designed for flow-noise
+  double_layer: False  # designed for flow-sde without acceleration
+  ignore_last: False  # ignore the last action for noise injection
+
+  # critic
+  detach_critic_input: False  # detach critic input with the action expert
+  chunk_critic_input: False  # use only the action chunk for critic estimation
+  add_value_head: ${actor.model.add_value_head}  # add value head for ppo
+  value_vlm_mode: "mean_token"  # last_token, mean_token, first_token
