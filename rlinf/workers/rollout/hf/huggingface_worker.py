@@ -116,6 +116,7 @@ class MultiStepRolloutWorker(Worker):
             SupportedModel.OPENPI,
             SupportedModel.MLP_POLICY,
             SupportedModel.GR00T,
+            SupportedModel.FLOWER,
         ]:
             kwargs = {"mode": mode}
 

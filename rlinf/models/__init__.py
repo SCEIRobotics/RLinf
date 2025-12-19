@@ -336,6 +336,10 @@ def get_model(cfg: DictConfig, override_config_kwargs=None):
         # filtered_cfg = filter_dataclass_kwargs(FlowerRLConfig, cfg)
         config = FlowerRLConfig(**cfg.flower)
         model = FlowerForRLActionPrediction(config)
+        if model_path is not None:
+            model_dict = torch.load(model_path, map_location='cpu')
+            print(f"Using checkpoint for init flower model (from get_model): {model_path}")
+            model.load_state_dict(model_dict)
         model.to(torch_dtype)
     else:
         return None

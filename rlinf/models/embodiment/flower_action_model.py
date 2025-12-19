@@ -127,6 +127,7 @@ class FlowerForRLActionPrediction(FlowerModel):
         **kwargs,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         
+        env_obs = self.precision_processor(env_obs)
         processed_obs = self.preprocess_observations(env_obs)
         # sample actions
         outputs = self.sample_actions(
@@ -161,6 +162,25 @@ class FlowerForRLActionPrediction(FlowerModel):
             dtype=torch.float32,
             device=device,
         )
+    
+    def precision_processor(self, processed_obs):
+        device = next(self.parameters()).device
+        for key, value in processed_obs.items():
+            if isinstance(value, list):
+                processed_obs[key] = [
+                    item.to(device=device).contiguous()
+                    if torch.is_tensor(item)
+                    else item
+                    for item in value
+                ]
+            elif torch.is_tensor(value):
+                processed_obs[key] = value.to(device=device).contiguous()
+            elif isinstance(value, dict):
+                for sub_key, sub_value in value.items():
+                    processed_obs[key][sub_key] = sub_value.to(
+                        device=device
+                    ).contiguous()
+        return processed_obs
     
     def preprocess_observations(self, observation, rotate = True):
         # match lerobot inputs
