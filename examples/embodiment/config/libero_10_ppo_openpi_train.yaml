@@ -1,7 +1,7 @@
 defaults:
   - env/libero_10@env.train
   - env/libero_10@env.eval
-  - model/flower@actor.model
+  - model/pi0@actor.model
   - training_backend/fsdp@actor.fsdp_config
   - override hydra/job_logging: stdout
 
@@ -21,15 +21,15 @@ runner:
   task_type: embodied
   logger:
     log_path: "../results"
-    project_name: rlinf_flower
-    experiment_name: "test_flower"
+    project_name: rlinf
+    experiment_name: "test_openpi"
     logger_backends: ["tensorboard"] # wandb, swanlab
 
   max_epochs: 1000
   max_steps: -1
 
   only_eval: False
-  eval_policy_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
+  eval_policy_path: null # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
   val_check_interval: -1
   save_interval: 40
   seq_length: 4096
@@ -49,7 +49,7 @@ algorithm:
   logprob_type: chunk_level
   entropy_type: token_level
 
-  update_epoch: 2
+  update_epoch: 4
   adv_type: gae
   loss_type: actor_critic
   loss_agg_func: "token-mean" 
@@ -125,7 +125,7 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    model_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt"
+    model_path: "/mnt/data/xingchen/models/huggingface/RLinf/RLinf-Pi0-LIBERO-Long-SFT"
     precision: ${actor.model.precision}
 
 actor:
@@ -140,21 +140,13 @@ actor:
   seed: 42
   enable_offload: True
 
-  # Override the default values in model/flower
+  # Override the default values in model/pi0
   model:
-    model_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt"
+    model_path: "/mnt/data/xingchen/models/huggingface/RLinf/RLinf-Pi0-LIBERO-Long-SFT"
     add_value_head: True
-
-    flower:
-      robot_type: "Franka Panda"
-      img_size: 112
-      horizon: 10
-      num_inference_steps: 8
-      action_env_dim: 7
-      max_action_dim: 7
-      use_proprio: False
-      vlm_path: "/mnt/data/xingchen/models/pretrained/Florence-2-large"
-      noise_method: "flow_sde"  # flow_sde, flow_noise, flow_cps
+    # openpi specific parameters
+    openpi:
+      detach_critic_input: True
 
   optim:
     lr: 5.0e-6

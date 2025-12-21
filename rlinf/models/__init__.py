@@ -341,6 +341,9 @@ def get_model(cfg: DictConfig, override_config_kwargs=None):
             print(f"Using checkpoint for init flower model (from get_model): {model_path}")
             model.load_state_dict(model_dict)
         model.to(torch_dtype)
+        if cfg.flower.train_expert_only:
+            print("Freezing Flower VLM parameters")
+            model.freeze_vlm()
     else:
         return None
     if torch.cuda.is_available():

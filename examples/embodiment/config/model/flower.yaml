@@ -38,7 +38,7 @@ flower:
   max_action_dim: 16  # for max action dim
 
   # training config
-  train_expert_only: False
+  train_expert_only: True
   safe_get_logprob: False
   joint_logprob: False  # designed for flow-noise
   double_layer: False  # designed for flow-sde without acceleration

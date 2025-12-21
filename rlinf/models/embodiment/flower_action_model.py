@@ -85,6 +85,14 @@ class FlowerTokenizer(FlowerDataCollator):
         return result
 
 class FlowerForRLActionPrediction(FlowerModel):
+    @property
+    def _no_split_modules(self) -> list[str]:
+        return [
+            "Florence2ForConditionalGeneration",
+            "TimestepEmbedder",
+            "FreqEmbedder",
+            "ActionSpaceEmbedderParameter"
+        ]
     def __init__(self, config: FlowerRLConfig):
         super().__init__(config)
         self.global_step = 0
@@ -570,6 +578,18 @@ class FlowerForRLActionPrediction(FlowerModel):
         entropy = 0.5 * torch.log(2 * math.pi * math.e * (sigma_safe**2))
         return entropy
 
+    def freeze_vlm(self):
+        if self.config.train_expert_only:
+            self.vlm.eval()
+            # self.frequency_embedder.eval()
+            # self.action_space_embedder.eval()
+            for params in self.vlm.parameters():
+                params.requires_grad = False
+            # for params in self.frequency_embedder.parameters():
+            #     params.requires_grad = False
+            # for params in self.action_space_embedder.parameters():
+            #     params.requires_grad = False
+                
 if __name__ == "__main__":
     import ipdb; ipdb.set_trace()
     # model
@@ -584,13 +604,13 @@ if __name__ == "__main__":
     model_dict = torch.load("/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt", map_location='cpu', weights_only = False)
     model.load_state_dict(model_dict)
     print(model)
-    device = torch.device('cuda:7' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.eval()
 
     # data
-    imgs = torch.randn(2, 3, 224, 224).to(device)
-    states = torch.randn(2, 16).to(device)
+    imgs = torch.randn(2, 3, 112, 112).to(device)
+    states = torch.randn(2, 7).to(device)
     prompts = ['put this cup on the table', 'move the block to the left']
     obs = {'images': imgs, 'wrist_images': imgs.clone(), 'states': states, 'task_descriptions': prompts}
 
