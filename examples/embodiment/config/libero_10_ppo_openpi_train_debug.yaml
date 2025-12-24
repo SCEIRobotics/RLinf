@@ -15,7 +15,7 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: 6,7
+    actor,env,rollout: 7
 
 runner:
   task_type: embodied
@@ -42,7 +42,7 @@ algorithm:
   kl_penalty: kl  # how to estimate kl divergence: kl or kl_penalty
   group_size: 1
   reward_coef: 1.0
-  rollout_epoch: 4
+  rollout_epoch: 1
   eval_rollout_epoch: 1 # set eval_rollout_epoch > 0 when enable runner.only_eval or runner.val_check_interval > 0
 
   reward_type: chunk_level
@@ -93,9 +93,9 @@ env:
   enable_offload: False
 
   train:
-    total_num_envs: 64
-    max_episode_steps: 480 # max episode steps for truncation
-    max_steps_per_rollout_epoch: 480
+    total_num_envs: 32
+    max_episode_steps: 20 # max episode steps for truncation
+    max_steps_per_rollout_epoch: 20
     reward_coef: ${algorithm.reward_coef}
   eval:
     total_num_envs: 128
@@ -136,7 +136,7 @@ actor:
     queue_size: 0
   training_backend: "fsdp"
   micro_batch_size: 64
-  global_batch_size: 2048 # maximum : global batch size = micro batch size * actor num_processes.
+  global_batch_size: 64 # maximum : global batch size = micro batch size * actor num_processes.
   seed: 42
   enable_offload: True
 

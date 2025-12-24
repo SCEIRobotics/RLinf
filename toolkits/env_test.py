@@ -42,8 +42,8 @@ def env_test(cfg, num_envs):
 def model_test(cfg, num_envs, model_dir, device):
     # model path update
     import ipdb; ipdb.set_trace()
-    cfg.rollout.model.model_path = model_dir
-    cfg.actor.model.model_path = model_dir
+    # cfg.rollout.model.model_path = model_dir
+    # cfg.actor.model.model_path = model_dir
     # cfg.actor.tokenizer.tokenizer_model = model_dir
 
     # env
@@ -59,8 +59,9 @@ def model_test(cfg, num_envs, model_dir, device):
         ]:
         model_config, input_processor = get_vla_model_config_and_processor(cfg.actor)
         model.setup_config_and_processor(model_config, cfg, input_processor)
-    model_dict = torch.load(model_dir, map_location='cpu')
-    model.load_state_dict(model_dict)
+    if model_dir is not None:
+        model_dict = torch.load(model_dir, map_location='cpu')
+        model.load_state_dict(model_dict)
     model.to(device)
     model.eval()
 
@@ -75,7 +76,7 @@ def model_test(cfg, num_envs, model_dir, device):
         # extracted_obs["states"] = None
         # extracted_obs["wrist_images"] = None
         model_inputs = to_gpu(extracted_obs, device)
-        actions, result = model.predict_action_batch(env_obs=model_inputs, mode="eval", **kwargs)
+        actions, result = model.predict_action_batch(env_obs=model_inputs, mode="train", **kwargs)
         chunk_actions = prepare_actions(
             raw_chunk_actions=actions,
             simulator_type=cfg.env.train.simulator_type,
@@ -96,9 +97,11 @@ def main(cfg) -> None:
     cfg.env.eval.video_cfg.video_base_dir = 'logs/temp/libero_flower'
 
     device = 'cuda:0'
+    model_dir = '/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt'
+    model_dir = None
     # env_test(cfg, num_envs = 2)
     # model_test(cfg, num_envs = 2, model_dir = '/mnt/data/xingchen/github/RLinf/logs/20251212-08:44:22/test_openvla/checkpoints/global_step_75/actor/model')
-    model_test(cfg, num_envs = 2, model_dir = '/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt', device=device)
+    model_test(cfg, num_envs = 4, model_dir = model_dir, device=device)
 
 if __name__ == "__main__":
     main()

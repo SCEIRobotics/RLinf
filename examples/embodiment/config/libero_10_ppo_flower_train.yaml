@@ -149,12 +149,13 @@ actor:
       robot_type: "Franka Panda"
       img_size: 112
       horizon: 10
-      num_inference_steps: 8
+      num_inference_steps: 4
       action_env_dim: 7
       max_action_dim: 7
       use_proprio: False
       vlm_path: "/mnt/data/xingchen/models/pretrained/Florence-2-large"
       noise_method: "flow_sde"  # flow_sde, flow_noise, flow_cps
+      detach_critic_input: True
 
   optim:
     lr: 5.0e-6

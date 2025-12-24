@@ -15,5 +15,6 @@ logs/*
 outputs/*
 *.so
 .venv
+.venv*
 uv.lock
 rlinf/envs/maniskill/assets

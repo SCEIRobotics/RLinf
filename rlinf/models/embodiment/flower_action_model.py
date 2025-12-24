@@ -249,6 +249,7 @@ class FlowerForRLActionPrediction(FlowerModel):
         data: dict[str, torch.Tensor],
         **kwargs,
     ) -> dict[str, Any]:
+        self.eval()
         # get kwargs
         compute_values = kwargs.get("compute_values", False)
         chains = data["chains"]
