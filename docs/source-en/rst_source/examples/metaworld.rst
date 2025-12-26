@@ -31,7 +31,7 @@ Environment
 
 **Data Structure**
 
-- **Images**: RGB tensors ``[batch_size, 3, 480, 480]``
+- **Images**: RGB tensors ``[batch_size, 480, 480, 3]``
 - **Task Descriptions**: Natural-language instructions
 - **Actions**: Normalized continuous values
 - **Rewards**: Sparse rewards based on task completion
@@ -57,17 +57,22 @@ Algorithm
 
    - Compute the advantage of each action by subtracting the group's mean reward
 
-
 Dependency Installation
 -----------------------
 
-Option 1: You can use the RLinf docker image for metaworld ``docker pull rlinf/rlinf:agentic-rlinf0.1-metaworld``.
+**Option 1: Docker Image**
 
-Option 2: Install dependencies directly in your environment by running the following command (make sure you already installed ``uv``):
+Use the Docker image ``rlinf/rlinf:agentic-rlinf0.1-metaworld`` for the experiment.
+
+**Option 2: Custom Environment**
+
+Install dependencies directly in your environment by running the following command:
 
 .. code:: bash
 
+   pip install uv
    bash requirements/install.sh embodied --model openpi --env metaworld
+   source .venv/bin/activate
 
 Model Download
 --------------
@@ -79,13 +84,13 @@ Before starting training, you need to download the corresponding pretrained mode
    # Download the model (choose either method)
    # Method 1: Using git clone
    git lfs install
-   git clone https://huggingface.co/RLinf/RLinf-Pi0-MetaWorld
-   git clone https://huggingface.co/RLinf/RLinf-Pi05-MetaWorld
+   git clone https://huggingface.co/RLinf/RLinf-Pi0-MetaWorld-SFT
+   git clone https://huggingface.co/RLinf/RLinf-Pi05-MetaWorld-SFT
 
    # Method 2: Using huggingface-hub
    pip install huggingface-hub
-   hf download RLinf/RLinf-Pi0-MetaWorld
-   hf download RLinf/RLinf-Pi05-MetaWorld
+   hf download RLinf/RLinf-Pi0-MetaWorld-SFT --local-dir RLinf-Pi0-MetaWorld-SFT
+   hf download RLinf/RLinf-Pi05-MetaWorld-SFT --local-dir RLinf-Pi05-MetaWorld-SFT
 
 Alternatively, you can also download the model from ModelScope at https://www.modelscope.cn/models/RLinf/RLinf-Pi0-MetaWorld.
 
@@ -221,7 +226,7 @@ Visualization and Results
      logger:
        log_path: "../results"
        project_name: rlinf
-       experiment_name: "test_metaworld"
+       experiment_name: "metaworld_50_ppo_openpi"
        logger_backends: ["tensorboard", "wandb"] # tensorboard, wandb, swanlab
 
 

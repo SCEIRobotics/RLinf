@@ -15,7 +15,7 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: 4-7
+    actor,env,rollout: 1-4
 
 runner:
   task_type: embodied
@@ -71,6 +71,7 @@ algorithm:
   rewards_upper_bound: 0.9
   # params for generation
   sampling_params:
+    do_sample: True
     use_greedy: False
     temperature_train: 1.0
     temperature_eval: 0.6
