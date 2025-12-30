@@ -186,7 +186,7 @@ class Cluster:
         try:
             # First try to connect to an existing Ray cluster
             ray.init(
-                # address="auto",
+                address="auto",
                 logging_level=Cluster.LOGGING_LEVEL,
                 namespace=Cluster.NAMESPACE,
                 # _temp_dir=os.environ['RAY_TEMP_DIR'],
