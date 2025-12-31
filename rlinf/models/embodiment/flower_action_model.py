@@ -14,6 +14,7 @@ from lerobot.datasets.streaming_dataset import FlowerDataCollator
 
 from rlinf.models.embodiment.modules.explore_noise_net import ExploreNoiseNet
 from rlinf.models.embodiment.modules.value_head import ValueHead
+from rlinf.models.embodiment.base_policy import BasePolicy
 
 @dataclass
 class FlowerRLConfig(FlowerConfig):
@@ -84,7 +85,7 @@ class FlowerTokenizer(FlowerDataCollator):
         result['action_index'] = batch_action_index
         return result
 
-class FlowerForRLActionPrediction(FlowerModel):
+class FlowerForRLActionPrediction(BasePolicy, FlowerModel):
     @property
     def _no_split_modules(self) -> list[str]:
         return [
@@ -94,7 +95,7 @@ class FlowerForRLActionPrediction(FlowerModel):
             "ActionSpaceEmbedderParameter"
         ]
     def __init__(self, config: FlowerRLConfig):
-        super().__init__(config)
+        FlowerModel.__init__(self, config)
         self.global_step = 0
 
         # value head
@@ -194,7 +195,7 @@ class FlowerForRLActionPrediction(FlowerModel):
         # match lerobot inputs
         img_size = self.config.img_size
         obs_out = {}
-        images = torch.stack([observation['full_images'].permute(0, 3, 1, 2).contiguous(), 
+        images = torch.stack([observation['main_images'].permute(0, 3, 1, 2).contiguous(), 
                               observation['wrist_images'].permute(0, 3, 1, 2).contiguous()], dim = 1)
         obs_out['observation.images'] = images.unsqueeze(1)  # (B, n_obs_steps, num_cameras, C, H, W)
         obs_out['observation.state'] = observation['states'].unsqueeze(1)  # (B, n_obs_steps, state_dim)
@@ -614,7 +615,7 @@ if __name__ == "__main__":
     imgs = torch.randn(2, 3, 112, 112).to(device)
     states = torch.randn(2, 7).to(device)
     prompts = ['put this cup on the table', 'move the block to the left']
-    obs = {'full_images': imgs, 'wrist_images': imgs.clone(), 'states': states, 'task_descriptions': prompts}
+    obs = {'main_images': imgs, 'wrist_images': imgs.clone(), 'states': states, 'task_descriptions': prompts}
 
     # inference
     actions, results = model.predict_action_batch(obs)

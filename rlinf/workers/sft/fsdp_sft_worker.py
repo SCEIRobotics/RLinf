@@ -100,9 +100,6 @@ class FSDPSftWorker(FSDPModelManager, Worker):
                 % (self.cfg.actor.micro_batch_size * self._world_size)
                 == 0
             ), "global_batch_size is not divisible by micro_batch_size * world_size"
-            assert self.cfg.actor.micro_batch_size == 1, (
-                "micro_batch_size must be 1 for SFT, because we use lerobot data loader api"
-            )
 
             self.gradient_accumulation = (
                 self.cfg.actor.global_batch_size
@@ -130,8 +127,8 @@ class FSDPSftWorker(FSDPModelManager, Worker):
 
                 with self.amp_context:
                     losses = self.model(
+                        forward_type="sft_forward",
                         data={"observation": observation, "actions": actions},
-                        mode="sft",
                     )
                     if isinstance(losses, (list, tuple)):
                         losses = torch.stack(losses)

@@ -31,7 +31,7 @@ fi
 echo "Using Python at $(which python)"
 
 if [ -z "$2" ]; then
-    LOG_DIR="${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')" #/$(date +'%Y%m%d-%H:%M:%S')"
+    LOG_DIR="${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')-${CONFIG_NAME}" #/$(date +'%Y%m%d-%H:%M:%S')"
 else
     LOG_DIR="${REPO_PATH}/logs/$2"
 fi
