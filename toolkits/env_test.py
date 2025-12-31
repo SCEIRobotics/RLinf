@@ -22,7 +22,7 @@ def to_gpu(datas: dict, device) -> dict:
     return datas
 
 def env_test(cfg, num_envs):
-    eval_env_cls = get_env_cls(cfg.env.eval.simulator_type, cfg.env.eval)
+    eval_env_cls = get_env_cls(cfg.env.eval.env_type, cfg.env.eval)
     env = eval_env_cls(cfg.env.eval, num_envs = num_envs, seed_offset=0, total_num_processes=1)
     extracted_obs, infos = env.reset()
     device = extracted_obs['images'].device
@@ -47,7 +47,7 @@ def model_test(cfg, num_envs, model_dir, device):
     # cfg.actor.tokenizer.tokenizer_model = model_dir
 
     # env
-    eval_env_cls = get_env_cls(cfg.env.eval.simulator_type, cfg.env.eval)
+    eval_env_cls = get_env_cls(cfg.env.eval.env_type, cfg.env.eval)
     env = eval_env_cls(cfg.env.eval, num_envs = num_envs, seed_offset=0, total_num_processes=1)
     extracted_obs, infos = env.reset()
 
@@ -79,7 +79,7 @@ def model_test(cfg, num_envs, model_dir, device):
         actions, result = model.predict_action_batch(env_obs=model_inputs, mode="train", **kwargs)
         chunk_actions = prepare_actions(
             raw_chunk_actions=actions,
-            simulator_type=cfg.env.train.simulator_type,
+            env_type=cfg.env.train.env_type,
             model_type=cfg.actor.model.model_type,
             num_action_chunks=cfg.actor.model.num_action_chunks,
             action_dim=cfg.actor.model.action_dim,
@@ -92,7 +92,7 @@ def model_test(cfg, num_envs, model_dir, device):
 )
 def main(cfg) -> None:
     # cfg = validate_cfg(cfg)
-    if cfg.env.eval.simulator_type == 'maniskill':
+    if cfg.env.eval.env_type == 'maniskill':
         cfg.env.eval.init_params.control_mode = "arm_pd_ee_target_delta_pose_align2_gripper_pd_joint_pos"
     cfg.env.eval.video_cfg.video_base_dir = 'logs/temp/libero_flower'
 
