@@ -277,12 +277,23 @@ def apply_fsdp2_to_model(
     )
 
     modules_to_shard = []
+    processed_top_module_paths = set()
+    tie_word_embeddings = getattr(module.config, "tie_word_embeddings", False)
 
     for name, submodule in module.named_modules():
-        if submodule.__class__.__name__ in fsdp_transformer_layer_cls_to_wrap or (
-            isinstance(submodule, torch.nn.Embedding)
-            and not getattr(module.config, "tie_word_embeddings", False)
-        ):
+        # 关键：判断当前模块是否是已处理顶层模块的子模块
+        is_child_of_processed = any(
+            name.startswith(f"{top_name}.") for top_name in processed_top_module_paths
+        )
+        if is_child_of_processed:
+            continue  # 跳过顶层模块的所有子模块
+
+        # 1. 优先筛选顶层Transformer层
+        if submodule.__class__.__name__ in fsdp_transformer_layer_cls_to_wrap:
+            modules_to_shard.append((name, submodule, "transformer_or_embedding"))
+            processed_top_module_paths.add(name)  # 标记该路径，跳过其子模块
+        # 2. 仅筛选「不在Transformer层内」的独立Embedding
+        elif isinstance(submodule, torch.nn.Embedding) and not tie_word_embeddings:
             modules_to_shard.append((name, submodule, "transformer_or_embedding"))
 
     for name, submodule, module_type in modules_to_shard:
