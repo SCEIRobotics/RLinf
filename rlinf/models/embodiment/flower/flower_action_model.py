@@ -14,7 +14,7 @@ from lerobot.datasets.streaming_dataset import FlowerDataCollator
 
 from rlinf.models.embodiment.modules.explore_noise_net import ExploreNoiseNet
 from rlinf.models.embodiment.modules.value_head import ValueHead
-from rlinf.models.embodiment.base_policy import BasePolicy
+from rlinf.models.embodiment.base_policy import BasePolicy, ForwardType
 
 @dataclass
 class FlowerRLConfig(FlowerConfig):
@@ -85,7 +85,7 @@ class FlowerTokenizer(FlowerDataCollator):
         result['action_index'] = batch_action_index
         return result
 
-class FlowerForRLActionPrediction(BasePolicy, FlowerModel):
+class FlowerForRLActionPrediction(FlowerModel, BasePolicy):
     @property
     def _no_split_modules(self) -> list[str]:
         return [
@@ -95,7 +95,7 @@ class FlowerForRLActionPrediction(BasePolicy, FlowerModel):
             "ActionSpaceEmbedderParameter"
         ]
     def __init__(self, config: FlowerRLConfig):
-        FlowerModel.__init__(self, config)
+        super().__init__(config)
         self.global_step = 0
 
         # value head
@@ -246,7 +246,13 @@ class FlowerForRLActionPrediction(BasePolicy, FlowerModel):
             log_prob = torch.where(mask, torch.zeros_like(log_prob), log_prob)
         return log_prob
 
-    def forward(
+    def forward(self, forward_type=ForwardType.DEFAULT, **kwargs):
+        if forward_type == ForwardType.DEFAULT:
+            return self.default_forward(**kwargs)
+        else:
+            raise NotImplementedError
+
+    def default_forward(
         self,
         data: dict[str, torch.Tensor],
         **kwargs,

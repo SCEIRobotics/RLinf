@@ -15,7 +15,7 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: 7
+    actor,env,rollout: 0
 
 runner:
   task_type: embodied
@@ -29,7 +29,7 @@ runner:
   max_steps: -1
 
   only_eval: False
-  eval_policy_path: "/data/xingchen/docker_project/models/avg_seq_len=0.93_valuehead.ckpt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
+  ckpt_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
   val_check_interval: -1
   save_interval: 40
   seq_length: 4096
@@ -126,7 +126,7 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    model_path: "/data/xingchen/docker_project/models/avg_seq_len=0.93_valuehead.ckpt"
+    model_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt"
     precision: ${actor.model.precision}
 
 actor:
@@ -143,7 +143,7 @@ actor:
 
   # Override the default values in model/flower
   model:
-    model_path: "/data/xingchen/docker_project/models/avg_seq_len=0.93_valuehead.ckpt"
+    model_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt"
     add_value_head: True
 
     flower:
@@ -154,7 +154,7 @@ actor:
       action_env_dim: 7
       max_action_dim: 7
       use_proprio: False
-      vlm_path: "/data/xingchen/docker_project/models/Florence-2-large"
+      vlm_path: "/mnt/data/xingchen/models/pretrained/Florence-2-large"
       noise_method: "flow_sde"  # flow_sde, flow_noise, flow_cps
 
   optim:
