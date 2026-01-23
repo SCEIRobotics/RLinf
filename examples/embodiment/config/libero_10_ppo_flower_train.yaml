@@ -29,8 +29,8 @@ runner:
   max_steps: -1
 
   only_eval: False
-  eval_policy_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
-  # eval_policy_path: "/mnt/data/xingchen/github/RLinf/logs/flower_libero_10_ppo_wanqinsft_20251224/test_flower/checkpoints/global_step_80/actor/ckpt.pt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
+  ckpt_path: "/mnt/data/xingchen/models/flower_train/avg_seq_len=0.93_valuehead.ckpt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
+  # ckpt_path: "/mnt/data/xingchen/github/RLinf/logs/flower_libero_10_ppo_wanqinsft_20251224/test_flower/checkpoints/global_step_80/actor/ckpt.pt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
   val_check_interval: -1
   save_interval: 40
   seq_length: 4096

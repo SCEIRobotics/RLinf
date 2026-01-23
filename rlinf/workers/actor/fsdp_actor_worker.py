@@ -33,7 +33,7 @@ from rlinf.hybrid_engines.fsdp.fsdp_model_manager import (
     FSDPModelManager,
 )
 from rlinf.models import get_model
-from rlinf.scheduler import Channel, Cluster, Worker
+from rlinf.scheduler import Channel, Cluster, CollectiveGroupOptions, Worker
 from rlinf.utils.data_iter_utils import get_iterator_k_split
 from rlinf.utils.distributed import all_reduce_dict, masked_normalization
 from rlinf.utils.distributed import (
@@ -473,7 +473,7 @@ class FSDPActor(FSDPModelManager, Worker):
             if "ref_logprobs" in m_batch:
                 ref_logprobs = m_batch["ref_logprobs"]
 
-            loss_mask = m_batch["attention_mask"][:, -self.response_len :]
+            loss_mask = m_batch["response_mask"][:, -self.response_len :]
 
             clip_ratio = self.cfg.algorithm.ratio_clip_eps
             clip_ratio_low = self.cfg.algorithm.get("clip_ratio_low", None)
@@ -552,9 +552,9 @@ class FSDPActor(FSDPModelManager, Worker):
 
             mbs_metrics_data.update(
                 {
-                    "final_loss": loss.detach(),
-                    "entropy_loss": entropy_loss.detach(),
-                    "kl_loss": kl_loss.detach(),
+                    "actor/final_loss": loss.detach(),
+                    "actor/entropy_loss": entropy_loss.detach(),
+                    "actor/kl_loss": kl_loss.detach(),
                 }
             )
 
@@ -580,7 +580,7 @@ class FSDPActor(FSDPModelManager, Worker):
         if self.cfg.algorithm.normalize_advantages:
 
             def normalize_advantages(batch: dict[str, torch.Tensor]):
-                mask = batch["attention_mask"][:, -self.response_len :]
+                mask = batch["response_mask"][:, -self.response_len :]
                 batch["advantages"] = masked_normalization(batch["advantages"], mask)
                 return batch
 
@@ -639,7 +639,7 @@ class FSDPActor(FSDPModelManager, Worker):
         global_batch = self.compute_advantages_and_returns(global_batch)
 
         if self.cfg.algorithm.normalize_advantages:
-            mask = global_batch["attention_mask"][:, -self.response_len :]
+            mask = global_batch["response_mask"][:, -self.response_len :]
             global_batch["advantages"] = masked_normalization(
                 global_batch["advantages"], mask
             )
@@ -700,7 +700,7 @@ class FSDPActor(FSDPModelManager, Worker):
         """
         with self.worker_timer():
             if batch.get("advantages", None) is None:
-                mask = batch["attention_mask"][:, -self.response_len :]
+                mask = batch["response_mask"][:, -self.response_len :]
                 advantages, _ = calculate_adv_and_returns(
                     task_type=self.task_type,
                     adv_type=self.cfg.algorithm.adv_type,
@@ -739,6 +739,13 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
         self.enable_offload = self.cfg.actor.get("enable_offload", False)
         self.entropy_op_type = self.cfg.algorithm.get("entropy_op_type", "torch")
 
+        # Sync weight comm options
+        max_ctas = cfg.rollout.get("sync_weight_nccl_max_ctas", None)
+        min_ctas = cfg.rollout.get("sync_weight_nccl_min_ctas", None)
+        self._sync_weight_comm_options = CollectiveGroupOptions(
+            accel_max_ctas=max_ctas, accel_min_ctas=min_ctas
+        )
+
     def _setup_rollout_weight_dst_ranks(self) -> None:
         """
         Setup destination ranks for weight communication.
@@ -771,9 +778,14 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
 
     def model_provider_func(self) -> nn.Module:
         model = get_model(self.cfg.actor.model)
-        if model is not None:
-            return model
-        return super().model_provider_func()
+        if model is None:
+            model = super().model_provider_func()
+
+        if self.cfg.runner.get("ckpt_path", None):
+            model_dict = torch.load(self.cfg.runner.ckpt_path)
+            model.load_state_dict(model_dict)
+
+        return model
 
     def sync_model_to_rollout(self) -> None:
         """
@@ -792,6 +804,7 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
                 self._rollout_group_name,
                 rank,
                 async_op=True,
+                options=self._sync_weight_comm_options,
             )
         if self.enable_offload and not self.is_weight_offloaded:
             self.offload_param_and_grad()

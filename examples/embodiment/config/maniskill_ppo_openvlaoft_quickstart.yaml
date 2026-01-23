@@ -32,10 +32,9 @@ runner:
   eval_policy_path: "/mnt/data/xingchen/github/RLinf/logs/train_openvla-oft-lora_maniskill_libero10-trajall/test_openvla/checkpoints/global_step_1000/actor/ckpt.pt" # Optional: .pt file or None, if None, will use the checkpoint in rollout.model.model_path
   val_check_interval: -1
   save_interval: 40
-  seq_length: 4096
-  max_prompt_length: 30
 
-  resume_dir: null
+  resume_dir: null # Optional: path to a saved checkpoint directory, such as 'checkpoints/global_step_10'. If not None, it will be used to resume training.
+  ckpt_path: null  # Optional: path to a .pt checkpoint. If not None, it will be loaded after the model is instantiated (for evaluation).
 
 algorithm:
   normalize_advantages: True
@@ -124,14 +123,6 @@ actor:
   seed: 1234
   enable_offload: True
 
-  tokenizer:
-    tokenizer_type: "HuggingFaceTokenizer"
-    tokenizer_model: "/mnt/data/xingchen/models/huggingface/RLinf/Openvla-oft-SFT-libero10-trajall/"
-    extra_vocab_size: 421
-    use_fast: False
-    trust_remote_code: True
-    padding_side: "right"
-
   # Override the default values in model/openvla_oft
   model:
     model_path: "/mnt/data/xingchen/models/huggingface/RLinf/Openvla-oft-SFT-libero10-trajall/"
@@ -142,6 +133,8 @@ actor:
     add_value_head: True
     is_lora: True
     lora_path: /mnt/data/xingchen/models/huggingface/RLinf/RLinf-OpenVLAOFT-ManiSkill-Base-Lora
+
+    max_prompt_length: 30
 
   optim:
     lr: 1.0e-4
