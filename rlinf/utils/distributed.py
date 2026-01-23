@@ -39,7 +39,7 @@ def compute_rollout_metrics(
 ):
     device = torch.device(f"cuda:{torch.cuda.current_device()}")
     advantages = rollout_batch["advantages"].to(device=device)
-    mask = rollout_batch["attention_mask"][:, -response_len:].to(device=device)
+    mask = rollout_batch["response_mask"][:, -response_len:].to(device=device)
     prompt_lengths = rollout_batch["prompt_lengths"].clone().to(device=device)
     response_lengths = rollout_batch["response_lengths"].clone().to(device=device)
     reward_scores = rollout_batch["rewards"].clone().to(device=device)
@@ -996,15 +996,3 @@ class ScopedTimer:
                     f"Attempted to store new duration for {name=} before consuming last measurement. Call consume_durations() to consume the last set of measurements."
                 )
             self._duration_log[name] = self._timer.get(name=name)
-
-
-def pad_list(tensor_list, pad_value):
-    """
-    Pad list of tensors to max seq len
-    """
-    max_N = max(tensor.size(1) for tensor in tensor_list)
-    padded_tensors = [
-        torch.nn.functional.pad(t, (0, max_N - t.size(1))) for t in tensor_list
-    ]
-
-    return padded_tensors

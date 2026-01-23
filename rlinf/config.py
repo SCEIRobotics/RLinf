@@ -26,6 +26,7 @@ import yaml
 from omegaconf import OmegaConf, open_dict
 from omegaconf.dictconfig import DictConfig
 
+from rlinf.envs import SupportedEnvType
 from rlinf.scheduler.cluster import Cluster
 from rlinf.utils.placement import (
     HybridComponentPlacement,
@@ -55,6 +56,7 @@ class SupportedModel(Enum):
     GR00T = ("gr00t", "embodied")
     FLOWER = ("flower", "embodied")
     CNN_POLICY = ("cnn_policy", "embodied")
+    FLOW_POLICY = ("flow_policy", "embodied")
 
     def __new__(cls, value, category):
         obj = object.__new__(cls)
@@ -74,7 +76,13 @@ def get_supported_model(model_type: str) -> SupportedModel:
 
 
 SUPPORTED_ROLLOUT_BACKENDS = ["sglang", "vllm"]
-SUPPORTED_TASK_TYPE = ["embodied", "reasoning", "coding_online_rl", "sft"]
+SUPPORTED_TASK_TYPE = [
+    "embodied",
+    "reasoning",
+    "reasoning_eval",
+    "coding_online_rl",
+    "sft",
+]
 SUPPORTED_TRAINING_BACKENDS = ["megatron", "fsdp"]
 __all__ = ["build_config"]
 
@@ -763,8 +771,8 @@ def validate_embodied_cfg(cfg):
 
     with open_dict(cfg):
         if (
-            cfg.env.train.env_type == "maniskill"
-            or cfg.env.eval.env_type == "maniskill"
+            SupportedEnvType(cfg.env.train.env_type) == SupportedEnvType.MANISKILL
+            or SupportedEnvType(cfg.env.eval.env_type) == SupportedEnvType.MANISKILL
         ):
 
             def get_robot_control_mode(robot: str):
@@ -786,7 +794,8 @@ def validate_embodied_cfg(cfg):
                 cfg.actor.model.policy_setup
             )
         elif (
-            cfg.env.train.env_type == "behavior" or cfg.env.eval.env_type == "behavior"
+            SupportedEnvType(cfg.env.train.env_type) == SupportedEnvType.BEHAVIOR
+            or SupportedEnvType(cfg.env.eval.env_type) == SupportedEnvType.BEHAVIOR
         ):
             import omnigibson as og
 
@@ -801,6 +810,8 @@ def validate_embodied_cfg(cfg):
                 open(config_filename, "r"), Loader=yaml.FullLoader
             )
             omnigibson_cfg = OmegaConf.create(omnigibson_cfg)
+            with open_dict(omnigibson_cfg):
+                omnigibson_cfg.robots[0].obs_modalities = ["rgb", "depth", "proprio"]
             cfg.env.train.omnigibson_cfg = omnigibson_cfg
             cfg.env.eval.omnigibson_cfg = omnigibson_cfg
 
@@ -841,6 +852,15 @@ def validate_reasoning_cfg(cfg: DictConfig) -> DictConfig:
             or cfg.algorithm.get("importance_sampling_fix", False)
         )
 
+        cfg.rollout = validate_rollout_cfg(cfg.rollout, cfg.algorithm)
+    return cfg
+
+
+def validate_reasoning_eval_cfg(cfg: DictConfig) -> DictConfig:
+    with open_dict(cfg):
+        assert cfg.runner.seq_length > cfg.data.max_prompt_length, (
+            f"runner.seq_length ({cfg.runner.seq_length}) must be greater than data.max_prompt_length ({cfg.data.max_prompt_length})"
+        )
         cfg.rollout = validate_rollout_cfg(cfg.rollout, cfg.algorithm)
     return cfg
 
@@ -913,6 +933,9 @@ def validate_cfg(cfg: DictConfig) -> DictConfig:
         cfg = validate_reasoning_cfg(cfg)
     elif cfg.runner.task_type == "coding_online_rl":
         cfg = validate_coding_online_rl_cfg(cfg)
+    elif cfg.runner.task_type == "reasoning_eval":
+        cfg = validate_reasoning_eval_cfg(cfg)
+        return cfg
 
     if cfg.algorithm.adv_type in ("grpo", "reinpp_baseline"):
         assert cfg.algorithm.group_size > 1

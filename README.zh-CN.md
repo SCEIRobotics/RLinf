@@ -30,6 +30,9 @@ RLinf 是一个灵活且可扩展的开源框架，专为具身智能和智能�
 
 
 ## 最新动态
+- [2026/01] 🔥 基于[RoboTwin](https://github.com/robotwin-Platform/RoboTwin)的强化学习微调已经上线！文档：[RL on RoboTwin](https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/robotwin.html)。
+- [2026/01] 🔥 RLinf 支持流匹配策略的 SAC 训练，包含仿真和Franka真机环境。文档：[SAC-Flow](https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/sac_flow.html)，论文：[SAC Flow: Sample-Efficient Reinforcement Learning of Flow-Based Policies via Velocity-Reparameterized Sequential Modeling](https://arxiv.org/abs/2509.25756)。
+- [2025/12] 🔥 RLinf支持[Search-R1](https://github.com/PeterGriffinJin/Search-R1)的强化学习微调，相比原版实现加速 55%！ 文档: [Search-R1](https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/searchr1.html)。
 - [2025/12] 🔥 RLinf v0.2-pre 发布！真机Franka的强化学习已经上线。 文档：[RL on Franka in the Real World](https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/franka.html)。
 - [2025/12] 🔥 基于[RoboCasa](https://github.com/robocasa/robocasa)的强化学习微调已经上线! 文档：[RL on RoboCasa](https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/robocasa.html)。
 - [2025/12] 🎉 RLinf正式发布[v0.1](https://github.com/RLinf/RLinf/releases/tag/v0.1)版本。
@@ -67,12 +70,13 @@ RLinf 是一个灵活且可扩展的开源框架，专为具身智能和智能�
         <ul style="margin-left: 0; padding-left: 16px;">
           <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/maniskill.html">ManiSkill</a> ✅</li>
           <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/libero.html">LIBERO</a> ✅</li>
-          <li>RoboTwin</li>
+          <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/robotwin.html">RoboTwin</a> ✅</li>
           <li>RoboVerse</li>
           <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/behavior.html">BEHAVIOR</a> ✅</li>
           <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/metaworld.html">MetaWorld</a> ✅</li>
           <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/isaaclab.html">IsaacLab</a> ✅</li>
           <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/robocasa.html">RoboCasa</a> ✅</li>
+          <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/frankasim.html">Franka-Sim</a> ✅</li>
           <li>More...</li>
         </ul>
       </td>
@@ -114,6 +118,7 @@ RLinf 是一个灵活且可扩展的开源框架，专为具身智能和智能�
             <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/tutorials/rlalg/sac.html">SAC</a> ✅</li>
             <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/tutorials/rlalg/crossq.html">CrossQ</a> ✅</li>
             <li><a href="https://rlinf.readthedocs.io/zh-cn/latest/rst_source/tutorials/rlalg/rlpd.html">RLPD</a> ✅</li>
+            <li><a href="https://arxiv.org/abs/2509.25756">SAC-Flow</a> ✅</li>
           </ul>
           <li><b>SFT</b></li>
           <ul>
@@ -567,7 +572,7 @@ RLinf 是一个灵活且可扩展的开源框架，专为具身智能和智能�
 - [ ] 支持深度搜索智能体训练
 
 - [ ] 支持多智能体训练
-- [ ] 支持更多具身模拟器的集成 (如 [GENESIS](https://github.com/Genesis-Embodied-AI/Genesis), [RoboTwin](https://github.com/RoboTwin-Platform/RoboTwin))  
+- [ ] 支持更多具身模拟器的集成 (如 [GENESIS](https://github.com/Genesis-Embodied-AI/Genesis))  
 - [ ] 支持更多VLA模型 (如[WALL-OSS](https://huggingface.co/x-square-robot/wall-oss-flow))
 - [ ] 支持世界模型（World Model）
 
